@@ -1,0 +1,47 @@
+# Variables de entorno (nunca subir credenciales)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+.eggs/
+*.egg
+
+# Modelos ML guardados (opcional: quitar si quieres versionarlos)
+ai-service/models/*.pkl
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+*.log
+npm-debug.log*
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+__dummy__.ipynb
+
+# Testing / coverage
+.coverage
+htmlcov/
+.pytest_cache/

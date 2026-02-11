@@ -1,0 +1,293 @@
+services:
+  # ============================================
+  # API GATEWAY
+  # ============================================
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: urban_gateway
+    ports:
+      - "${GATEWAY_PORT:-80}:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      traffic-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+      gamification-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    networks:
+      - urban_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # MICROSERVICIOS
+  # ============================================
+  
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: urban_auth_service
+    ports:
+      - "${AUTH_SERVICE_PORT:-8001}:8000"
+    environment:
+      - SERVICE_NAME=auth-service
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${AUTH_DB_NAME:-auth_db}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB_AUTH:-1}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-3600}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - urban_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  traffic-service:
+    build:
+      context: ./traffic-service
+      dockerfile: Dockerfile
+    container_name: urban_traffic_service
+    ports:
+      - "${TRAFFIC_SERVICE_PORT:-8002}:8000"
+    environment:
+      - SERVICE_NAME=traffic-service
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${TRAFFIC_DB_NAME:-traffic_db}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB_TRAFFIC:-2}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    networks:
+      - urban_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: urban_ai_service
+    ports:
+      - "${AI_SERVICE_PORT:-8003}:8000"
+    environment:
+      - SERVICE_NAME=ai-service
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${AI_DB_NAME:-ai_db}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB_AI:-3}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - urban_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  gamification-service:
+    build:
+      context: ./gamification-service
+      dockerfile: Dockerfile
+    container_name: urban_gamification_service
+    ports:
+      - "${GAMIFICATION_SERVICE_PORT:-8004}:8000"
+    environment:
+      - SERVICE_NAME=gamification-service
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${GAMIFICATION_DB_NAME:-gamification_db}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB_GAMIFICATION:-0}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - urban_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: urban_notification_service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8005}:8000"
+    environment:
+      - SERVICE_NAME=notification-service
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${NOTIFICATION_DB_NAME:-notification_db}
+      - REDIS_URL=redis://redis:6379/${REDIS_DB_NOTIFICATION:-4}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - urban_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # BASES DE DATOS
+  # ============================================
+  
+  postgres:
+    image: postgres:16-alpine
+    container_name: urban_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_MULTIPLE_DATABASES=${AUTH_DB_NAME:-auth_db},${TRAFFIC_DB_NAME:-traffic_db},${AI_DB_NAME:-ai_db},${GAMIFICATION_DB_NAME:-gamification_db},${NOTIFICATION_DB_NAME:-notification_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+    networks:
+      - urban_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: urban_redis
+    restart: unless-stopped
+    command: >
+      sh -c "
+      if [ -n \"$$REDIS_PASSWORD\" ]; then
+        redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\"
+      else
+        redis-server --appendonly yes
+      fi
+      "
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - urban_network
+    healthcheck:
+      test: >
+        sh -c "
+        if [ -n \"$$REDIS_PASSWORD\" ]; then
+          redis-cli -a \"$$REDIS_PASSWORD\" ping
+        else
+          redis-cli ping
+        fi
+        "
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+  # ============================================
+  # MENSAJERÍA
+  # ============================================
+  
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: urban_rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+      - RABBITMQ_DEFAULT_VHOST=${RABBITMQ_VHOST:-/}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - urban_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# ============================================
+# REDES
+# ============================================
+networks:
+  urban_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ============================================
+# VOLÚMENES PERSISTENTES
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
